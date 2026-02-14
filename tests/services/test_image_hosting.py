@@ -105,3 +105,111 @@ class TestGetImageUrl:
     def test_strips_trailing_slash(self) -> None:
         url = image_hosting.get_image_url("ns1", "img1", "http://localhost:8000/")
         assert url == "http://localhost:8000/images/ns1/img1"
+
+
+class TestDetectMimeType:
+    def test_jpeg_mime(self) -> None:
+        data = _make_test_image(fmt="JPEG")
+        assert image_hosting.detect_mime_type(data) == "image/jpeg"
+
+    def test_png_mime(self) -> None:
+        data = _make_test_image(fmt="PNG")
+        assert image_hosting.detect_mime_type(data) == "image/png"
+
+    def test_gif_mime(self) -> None:
+        data = _make_test_image(fmt="GIF")
+        assert image_hosting.detect_mime_type(data) == "image/gif"
+
+    def test_webp_mime(self) -> None:
+        data = _make_test_image(fmt="WEBP")
+        assert image_hosting.detect_mime_type(data) == "image/webp"
+
+    def test_unknown_defaults_to_jpeg(self) -> None:
+        assert image_hosting.detect_mime_type(b"\x00\x00\x00") == "image/jpeg"
+
+
+class TestSaveImageBytes:
+    def test_save_bytes_success(self, tmp_path: Path) -> None:
+        with patch.object(image_hosting, "IMAGES_DIR", tmp_path):
+            image_bytes = _make_test_image()
+            image_id = image_hosting.save_image_bytes("test-ns", image_bytes)
+            assert image_id is not None
+            result = image_hosting.get_image_path("test-ns", image_id)
+            assert result is not None
+
+    def test_save_bytes_invalid_data(self, tmp_path: Path) -> None:
+        with patch.object(image_hosting, "IMAGES_DIR", tmp_path):
+            result = image_hosting.save_image_bytes("test-ns", b"not-an-image")
+            assert result is None
+
+
+class TestGenerateImageId:
+    def test_uniqueness(self) -> None:
+        ids = {image_hosting.generate_image_id() for _ in range(100)}
+        assert len(ids) == 100
+
+    def test_format(self) -> None:
+        image_id = image_hosting.generate_image_id()
+        assert "-" in image_id
+        assert len(image_id) > 20
+
+
+class TestResizeImageExtended:
+    def test_landscape_resize_ratio(self) -> None:
+        data = _make_test_image(2000, 1000)
+        resized, _ = image_hosting._resize_image(data, 800)
+        img = Image.open(BytesIO(resized))
+        assert img.size[0] == 800
+        assert img.size[1] == 400
+
+    def test_portrait_resize_ratio(self) -> None:
+        data = _make_test_image(500, 2000)
+        resized, _ = image_hosting._resize_image(data, 800)
+        img = Image.open(BytesIO(resized))
+        assert img.size[1] == 800
+        assert img.size[0] == 200
+
+    def test_rgba_converted_to_rgb(self) -> None:
+        img = Image.new("RGBA", (100, 100), color=(255, 0, 0, 128))
+        buffer = BytesIO()
+        img.save(buffer, format="PNG")
+        resized, fmt = image_hosting._resize_image(buffer.getvalue(), 200)
+        assert fmt == "jpeg"
+        result_img = Image.open(BytesIO(resized))
+        assert result_img.mode == "RGB"
+
+    def test_palette_mode_converted(self) -> None:
+        img = Image.new("P", (100, 100))
+        buffer = BytesIO()
+        img.save(buffer, format="PNG")
+        resized, fmt = image_hosting._resize_image(buffer.getvalue(), 200)
+        assert fmt == "jpeg"
+        result_img = Image.open(BytesIO(resized))
+        assert result_img.mode == "RGB"
+
+
+class TestSaveImageInvalid:
+    def test_invalid_base64(self, tmp_path: Path) -> None:
+        with patch.object(image_hosting, "IMAGES_DIR", tmp_path):
+            result = image_hosting.save_image("test-ns", "!!!not-base64!!!")
+            assert result is None
+
+    def test_valid_base64_but_not_image(self, tmp_path: Path) -> None:
+        with patch.object(image_hosting, "IMAGES_DIR", tmp_path):
+            data = base64.b64encode(b"just some text").decode()
+            result = image_hosting.save_image("test-ns", data)
+            assert result is None
+
+
+class TestEnsureNamespaceDir:
+    def test_creates_nested_dir(self, tmp_path: Path) -> None:
+        with patch.object(image_hosting, "IMAGES_DIR", tmp_path):
+            ns_dir = image_hosting._ensure_namespace_dir("new-ns")
+            assert ns_dir.exists()
+            assert ns_dir == tmp_path / "new-ns"
+
+    def test_idempotent(self, tmp_path: Path) -> None:
+        with patch.object(image_hosting, "IMAGES_DIR", tmp_path):
+            d1 = image_hosting._ensure_namespace_dir("ns")
+            d2 = image_hosting._ensure_namespace_dir("ns")
+            assert d1 == d2
