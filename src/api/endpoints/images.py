@@ -54,12 +54,26 @@ def _validate_fetch_url(url: str) -> None:
         raise AppError(status_code=400, detail="Invalid url")
 
 
-def _try_serve_local(url: str) -> tuple[bytes, str] | None:
+def _try_serve_local(url: str, base_url: str) -> tuple[bytes, str] | None:
     parsed = urlparse(url)
+    base_parsed = urlparse(base_url)
+    if parsed.hostname:
+        if not base_parsed.hostname:
+            return None
+        if parsed.hostname.lower() != base_parsed.hostname.lower():
+            return None
+        if parsed.scheme and base_parsed.scheme and parsed.scheme.lower() != base_parsed.scheme.lower():
+            return None
+        parsed_port = parsed.port or (443 if parsed.scheme.lower() == "https" else 80)
+        base_port = base_parsed.port or (443 if base_parsed.scheme.lower() == "https" else 80)
+        if parsed_port != base_port:
+            return None
     m = _INTERNAL_PATH_RE.match(parsed.path)
     if not m:
         return None
     namespace, image_id = m.group(1), m.group(2)
+    _validate_path_segment(namespace, "namespace")
+    _validate_path_segment(image_id, "image_id")
     result = image_hosting.get_image_path(namespace, image_id)
     if not result:
         return None
@@ -68,8 +82,9 @@ def _try_serve_local(url: str) -> tuple[bytes, str] | None:
 
 
 @router.post("/fetch", response_model=ImageFetchResponse)
-async def fetch_external_image(body: ImageFetchRequest) -> ImageFetchResponse:
-    local = _try_serve_local(body.url)
+async def fetch_external_image(request: Request, body: ImageFetchRequest) -> ImageFetchResponse:
+    base_url = str(request.base_url)
+    local = _try_serve_local(body.url, base_url)
     if local:
         image_bytes, mime_type = local
         data = base64.b64encode(image_bytes).decode()
