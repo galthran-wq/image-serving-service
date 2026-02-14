@@ -75,9 +75,9 @@ def generate_image_id() -> str:
     return f"{uuid.uuid4().hex}-{secrets.token_urlsafe(8)}"
 
 
-def _save_bytes(namespace: str, image_bytes: bytes) -> str | None:
+def _save_bytes(namespace: str, image_bytes: bytes, max_size: int) -> str | None:
     try:
-        resized_bytes, img_format = _resize_image(image_bytes, settings.max_upload_size)
+        resized_bytes, img_format = _resize_image(image_bytes, max_size)
         ext = FORMAT_TO_EXT.get(img_format, "jpg")
         namespace_dir = _ensure_namespace_dir(namespace)
         image_id = generate_image_id()
@@ -96,14 +96,14 @@ def save_image(namespace: str, base64_data: str) -> str | None:
         if ";base64," in base64_data:
             base64_data = base64_data.split(";base64,")[1]
         image_bytes = base64.b64decode(base64_data)
-        return _save_bytes(namespace, image_bytes)
+        return _save_bytes(namespace, image_bytes, settings.max_upload_size)
     except Exception as e:
         logger.error("image_save_failed", namespace=namespace, error=str(e))
         return None
 
 
 def save_image_bytes(namespace: str, image_bytes: bytes) -> str | None:
-    return _save_bytes(namespace, image_bytes)
+    return _save_bytes(namespace, image_bytes, settings.max_fetch_size)
 
 
 def get_image_path(namespace: str, image_id: str) -> tuple[Path, str] | None:
