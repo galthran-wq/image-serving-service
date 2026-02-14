@@ -3,7 +3,6 @@ from pydantic import BaseModel
 
 class ImageUploadRequest(BaseModel):
     data: str
-    mime_type: str
 
 
 class ImageUploadResponse(BaseModel):

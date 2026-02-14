@@ -1,3 +1,6 @@
+import ipaddress
+from urllib.parse import urlparse
+
 import structlog
 from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse
@@ -20,6 +23,35 @@ router = APIRouter(prefix="/images")
 def _validate_path_segment(value: str, name: str) -> None:
     if not value or ".." in value or "/" in value:
         raise AppError(status_code=400, detail=f"Invalid {name}")
+
+
+def _is_blocked_ip(hostname: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(hostname)
+    except ValueError:
+        return False
+    return (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_reserved
+        or ip.is_multicast
+        or ip.is_unspecified
+    )
+
+
+def _validate_fetch_url(url: str) -> None:
+    parsed = urlparse(url)
+    scheme = parsed.scheme.lower()
+    if scheme not in ("http", "https"):
+        raise AppError(status_code=400, detail="Invalid url")
+    if not parsed.hostname:
+        raise AppError(status_code=400, detail="Invalid url")
+    hostname = parsed.hostname
+    if hostname == "localhost" or hostname.endswith(".localhost"):
+        raise AppError(status_code=400, detail="Invalid url")
+    if _is_blocked_ip(hostname):
+        raise AppError(status_code=400, detail="Invalid url")
 
 
 @router.get("/{namespace}/{image_id}")
@@ -67,6 +99,7 @@ async def fetch_external_image(
     body: ImageFetchRequest,
 ) -> ImageFetchResponse:
     _validate_path_segment(namespace, "namespace")
+    _validate_fetch_url(body.url)
 
     image_bytes = await image_fetcher.fetch_image(body.url, pool=body.pool)
     if not image_bytes:

@@ -24,7 +24,7 @@ class TestUploadImage:
         with patch.object(image_hosting, "IMAGES_DIR", tmp_path):
             response = await client.post(
                 "/images/test-ns",
-                json={"data": _make_base64_image(), "mime_type": "image/jpeg"},
+                json={"data": _make_base64_image()},
             )
             assert response.status_code == 200
             data = response.json()
@@ -35,7 +35,7 @@ class TestUploadImage:
     async def test_upload_invalid_namespace(self, client: AsyncClient) -> None:
         response = await client.post(
             "/images/..secret",
-            json={"data": _make_base64_image(), "mime_type": "image/jpeg"},
+            json={"data": _make_base64_image()},
         )
         assert response.status_code == 400
 
