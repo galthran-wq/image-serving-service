@@ -1,6 +1,5 @@
 from httpx import ASGITransport, AsyncClient
 from pydantic import BaseModel
-
 from src.core.exceptions import AppError
 from src.main import app
 

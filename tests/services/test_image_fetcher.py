@@ -1,8 +1,6 @@
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from src.services import image_fetcher
 
 
