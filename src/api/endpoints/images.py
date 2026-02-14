@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import ipaddress
+import re
 from urllib.parse import urlparse
 
 import structlog
@@ -22,6 +23,8 @@ from src.services import image_fetcher, image_hosting
 logger = structlog.get_logger()
 
 router = APIRouter(prefix="/images")
+
+_INTERNAL_PATH_RE = re.compile(r"^/(?:api/)?images/([^/]+)/([^/]+)$")
 
 
 def _validate_path_segment(value: str, name: str) -> None:
@@ -51,8 +54,27 @@ def _validate_fetch_url(url: str) -> None:
         raise AppError(status_code=400, detail="Invalid url")
 
 
+def _try_serve_local(url: str) -> tuple[bytes, str] | None:
+    parsed = urlparse(url)
+    m = _INTERNAL_PATH_RE.match(parsed.path)
+    if not m:
+        return None
+    namespace, image_id = m.group(1), m.group(2)
+    result = image_hosting.get_image_path(namespace, image_id)
+    if not result:
+        return None
+    image_path, media_type = result
+    return image_path.read_bytes(), media_type
+
+
 @router.post("/fetch", response_model=ImageFetchResponse)
 async def fetch_external_image(body: ImageFetchRequest) -> ImageFetchResponse:
+    local = _try_serve_local(body.url)
+    if local:
+        image_bytes, mime_type = local
+        data = base64.b64encode(image_bytes).decode()
+        return ImageFetchResponse(data=data, mime_type=mime_type)
+
     _validate_fetch_url(body.url)
 
     image_bytes = await image_fetcher.fetch_image(body.url, pool=body.pool)
