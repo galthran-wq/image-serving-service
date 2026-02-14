@@ -54,7 +54,7 @@ def get_http_client() -> ProxyHttpClient:
 
 def resize_image(image_bytes: bytes, max_size: int) -> bytes:
     try:
-        img = Image.open(BytesIO(image_bytes))
+        img: Image.Image = Image.open(BytesIO(image_bytes))
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
         width, height = img.size

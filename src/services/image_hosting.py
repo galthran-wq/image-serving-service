@@ -50,7 +50,7 @@ def _ensure_namespace_dir(namespace: str) -> Path:
 
 def _resize_image(image_bytes: bytes, max_size: int) -> tuple[bytes, str]:
     try:
-        img = Image.open(BytesIO(image_bytes))
+        img: Image.Image = Image.open(BytesIO(image_bytes))
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
         width, height = img.size
