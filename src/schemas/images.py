@@ -22,3 +22,12 @@ class ImageFetchRequest(BaseModel):
 class ImageFetchResponse(BaseModel):
     data: str
     mime_type: str
+
+
+class ImageProxyRequest(BaseModel):
+    urls: list[str]
+    pool: str | None = None
+
+
+class ImageProxyResponse(BaseModel):
+    urls: dict[str, str]

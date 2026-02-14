@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import ipaddress
 from urllib.parse import urlparse
@@ -11,6 +12,8 @@ from src.schemas.images import (
     ImageDeleteResponse,
     ImageFetchRequest,
     ImageFetchResponse,
+    ImageProxyRequest,
+    ImageProxyResponse,
     ImageUploadRequest,
     ImageUploadResponse,
 )
@@ -59,6 +62,30 @@ async def fetch_external_image(body: ImageFetchRequest) -> ImageFetchResponse:
     mime_type = image_hosting.detect_mime_type(image_bytes)
     data = base64.b64encode(image_bytes).decode()
     return ImageFetchResponse(data=data, mime_type=mime_type)
+
+
+@router.post("/{namespace}/proxy", response_model=ImageProxyResponse)
+async def proxy_images(namespace: str, request: Request, body: ImageProxyRequest) -> ImageProxyResponse:
+    _validate_path_segment(namespace, "namespace")
+    base_url = str(request.base_url).rstrip("/")
+    result_urls: dict[str, str] = {}
+    sem = asyncio.Semaphore(5)
+
+    async def _proxy_one(url: str) -> None:
+        async with sem:
+            try:
+                _validate_fetch_url(url)
+                image_bytes = await image_fetcher.fetch_image(url, pool=body.pool)
+                if not image_bytes:
+                    return
+                image_id = image_hosting.save_image_bytes(namespace, image_bytes)
+                if image_id:
+                    result_urls[url] = image_hosting.get_image_url(namespace, image_id, base_url)
+            except Exception as e:
+                logger.error("proxy_image_failed", url=url[:80], error=str(e))
+
+    await asyncio.gather(*[_proxy_one(url) for url in body.urls])
+    return ImageProxyResponse(urls=result_urls)
 
 
 @router.get("/{namespace}/{image_id}")
