@@ -62,7 +62,9 @@ async def delete_images(namespace: str) -> ImageDeleteResponse:
 
 @router.post("/{namespace}/fetch", response_model=ImageFetchResponse)
 async def fetch_external_image(
-    namespace: str, request: Request, body: ImageFetchRequest,
+    namespace: str,
+    request: Request,
+    body: ImageFetchRequest,
 ) -> ImageFetchResponse:
     _validate_path_segment(namespace, "namespace")
 
