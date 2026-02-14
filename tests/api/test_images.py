@@ -80,49 +80,41 @@ class TestDeleteImages:
 
 
 class TestFetchExternalImage:
-    async def test_fetch_success(self, client: AsyncClient, tmp_path: Path) -> None:
+    async def test_fetch_success(self, client: AsyncClient) -> None:
         test_image = _make_test_image()
-        with (
-            patch.object(image_hosting, "IMAGES_DIR", tmp_path),
-            patch(
-                "src.services.image_fetcher.fetch_image",
-                new_callable=AsyncMock,
-                return_value=test_image,
-            ),
+        with patch(
+            "src.services.image_fetcher.fetch_image",
+            new_callable=AsyncMock,
+            return_value=test_image,
         ):
             response = await client.post(
-                "/images/test-ns/fetch",
+                "/images/fetch",
                 json={"url": "https://example.com/image.jpg"},
             )
             assert response.status_code == 200
             data = response.json()
-            assert "image_id" in data
-            assert "url" in data
+            assert "data" in data
+            assert "mime_type" in data
+            assert data["mime_type"] == "image/jpeg"
 
-    async def test_fetch_failure(self, client: AsyncClient, tmp_path: Path) -> None:
-        with (
-            patch.object(image_hosting, "IMAGES_DIR", tmp_path),
-            patch(
-                "src.services.image_fetcher.fetch_image",
-                new_callable=AsyncMock,
-                return_value=None,
-            ),
+    async def test_fetch_failure(self, client: AsyncClient) -> None:
+        with patch(
+            "src.services.image_fetcher.fetch_image",
+            new_callable=AsyncMock,
+            return_value=None,
         ):
             response = await client.post(
-                "/images/test-ns/fetch",
+                "/images/fetch",
                 json={"url": "https://example.com/broken.jpg"},
             )
             assert response.status_code == 502
 
-    async def test_fetch_with_pool(self, client: AsyncClient, tmp_path: Path) -> None:
+    async def test_fetch_with_pool(self, client: AsyncClient) -> None:
         test_image = _make_test_image()
         mock_fetch = AsyncMock(return_value=test_image)
-        with (
-            patch.object(image_hosting, "IMAGES_DIR", tmp_path),
-            patch("src.services.image_fetcher.fetch_image", mock_fetch),
-        ):
+        with patch("src.services.image_fetcher.fetch_image", mock_fetch):
             response = await client.post(
-                "/images/test-ns/fetch",
+                "/images/fetch",
                 json={"url": "https://example.com/image.jpg", "pool": "foreign"},
             )
             assert response.status_code == 200

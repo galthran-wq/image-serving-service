@@ -20,5 +20,5 @@ class ImageFetchRequest(BaseModel):
 
 
 class ImageFetchResponse(BaseModel):
-    image_id: str
-    url: str
+    data: str
+    mime_type: str

@@ -1,3 +1,4 @@
+import base64
 import ipaddress
 from urllib.parse import urlparse
 
@@ -47,6 +48,19 @@ def _validate_fetch_url(url: str) -> None:
         raise AppError(status_code=400, detail="Invalid url")
 
 
+@router.post("/fetch", response_model=ImageFetchResponse)
+async def fetch_external_image(body: ImageFetchRequest) -> ImageFetchResponse:
+    _validate_fetch_url(body.url)
+
+    image_bytes = await image_fetcher.fetch_image(body.url, pool=body.pool)
+    if not image_bytes:
+        raise AppError(status_code=502, detail="Failed to fetch external image")
+
+    mime_type = image_hosting.detect_mime_type(image_bytes)
+    data = base64.b64encode(image_bytes).decode()
+    return ImageFetchResponse(data=data, mime_type=mime_type)
+
+
 @router.get("/{namespace}/{image_id}")
 async def get_image(namespace: str, image_id: str) -> FileResponse:
     _validate_path_segment(namespace, "namespace")
@@ -83,25 +97,3 @@ async def delete_images(namespace: str) -> ImageDeleteResponse:
 
     count = image_hosting.delete_namespace_images(namespace)
     return ImageDeleteResponse(deleted_count=count)
-
-
-@router.post("/{namespace}/fetch", response_model=ImageFetchResponse)
-async def fetch_external_image(
-    namespace: str,
-    request: Request,
-    body: ImageFetchRequest,
-) -> ImageFetchResponse:
-    _validate_path_segment(namespace, "namespace")
-    _validate_fetch_url(body.url)
-
-    image_bytes = await image_fetcher.fetch_image(body.url, pool=body.pool)
-    if not image_bytes:
-        raise AppError(status_code=502, detail="Failed to fetch external image")
-
-    image_id = image_hosting.save_image_bytes(namespace, image_bytes)
-    if not image_id:
-        raise AppError(status_code=500, detail="Failed to save fetched image")
-
-    base_url = str(request.base_url).rstrip("/")
-    url = image_hosting.get_image_url(namespace, image_id, base_url)
-    return ImageFetchResponse(image_id=image_id, url=url)
