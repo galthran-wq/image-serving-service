@@ -30,14 +30,7 @@ def _is_blocked_ip(hostname: str) -> bool:
         ip = ipaddress.ip_address(hostname)
     except ValueError:
         return False
-    return (
-        ip.is_private
-        or ip.is_loopback
-        or ip.is_link_local
-        or ip.is_reserved
-        or ip.is_multicast
-        or ip.is_unspecified
-    )
+    return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified
 
 
 def _validate_fetch_url(url: str) -> None:
