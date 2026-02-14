@@ -276,7 +276,7 @@ requires-dist = [
     { name = "pillow", specifier = ">=11.0.0" },
     { name = "prometheus-fastapi-instrumentator", specifier = ">=7.0.0" },
     { name = "pydantic-settings", specifier = ">=2.7.0" },
-    { name = "resilient-httpx", specifier = ">=0.2.0" },
+    { name = "resilient-httpx", specifier = ">=0.3.0" },
     { name = "structlog", specifier = ">=24.4.0" },
     { name = "uvicorn", specifier = ">=0.34.0" },
 ]
@@ -764,16 +764,16 @@ wheels = [
 
 [[package]]
 name = "resilient-httpx"
-version = "0.2.0"
+version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
     { name = "structlog" },
     { name = "tenacity" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/49/0c/b1cc4075bf9eec02ed37f4c6b27c7356dca075d42e75e9d41f72441fa902/resilient_httpx-0.2.0.tar.gz", hash = "sha256:ae5df9e3e361e37ee530fa5eafca0e6b52a1e5c315ead0f9226682f345af7ca5", size = 7918, upload-time = "2026-02-14T14:08:49.094Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f4/45/35efe02fd52aff4df6f5e47eae18b2cce1079758fbd846f4c415ec1dcc23/resilient_httpx-0.3.0.tar.gz", hash = "sha256:dc0cb1ca1ed20dfce597e159fdb0661cbdff4dff27aee230d212d6605d485440", size = 8534, upload-time = "2026-02-14T16:43:52.375Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d0/d8/9f92f4503b53126b034adf1fccc390da4795e86b08767375ef62bec8743f/resilient_httpx-0.2.0-py3-none-any.whl", hash = "sha256:d5628115e2ac7f0d278815a3cfe9304eb112e4333124e564ee7bb9fc53fdb3e9", size = 7218, upload-time = "2026-02-14T14:08:47.483Z" },
+    { url = "https://files.pythonhosted.org/packages/4a/4a/28f3b2e1b38fc3b0c0bcb96e70de9bbd4242843c3e1eab602e9838816b19/resilient_httpx-0.3.0-py3-none-any.whl", hash = "sha256:e3ae560328e22be6b4e16fcbddf51d90b337d547f529814e0135a15b9cb18f3e", size = 7603, upload-time = "2026-02-14T16:43:50.873Z" },
 ]
 
 [[package]]
