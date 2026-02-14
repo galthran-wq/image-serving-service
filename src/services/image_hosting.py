@@ -30,6 +30,11 @@ FORMAT_TO_MEDIA_TYPE = {
 }
 
 
+def detect_mime_type(image_bytes: bytes) -> str:
+    fmt = _detect_image_format(image_bytes)
+    return FORMAT_TO_MEDIA_TYPE.get(fmt, "image/jpeg")
+
+
 def _detect_image_format(image_bytes: bytes) -> str:
     if image_bytes[:8] == b"\x89PNG\r\n\x1a\n":
         return "png"
