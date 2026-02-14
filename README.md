@@ -31,6 +31,7 @@ Microservice for uploading, serving, and fetching images with proxy-based extern
 | `POST` | `/images/{namespace}` | Upload a base64-encoded image |
 | `DELETE` | `/images/{namespace}` | Delete all images in a namespace |
 | `POST` | `/images/fetch` | Fetch an external image via proxy, return base64 |
+| `POST` | `/images/{namespace}/proxy` | Fetch and save multiple external images, return URLs |
 | `GET` | `/health` | Health check |
 | `GET` | `/ready` | Readiness check |
 
@@ -61,6 +62,7 @@ make run
 | `UPLOADS_PATH` | `/app/uploads` | Base storage directory |
 | `MAX_UPLOAD_SIZE` | `1200` | Max pixel dimension for uploaded images |
 | `MAX_FETCH_SIZE` | `800` | Max pixel dimension for fetched images |
+| `MAX_FETCH_BYTES` | `10485760` | Max response size in bytes for external fetches |
 | `FETCH_TIMEOUT` | `15.0` | Timeout for external image fetches |
 | `PROXIES` | `{}` | Named proxy pools as inline URLs, e.g. `{"foreign": ["http://p1:8080"]}` |
 | `PROXY_FILES` | `{}` | Named proxy pools as file paths, e.g. `{"foreign": "/app/proxies_foreign.txt"}` |
