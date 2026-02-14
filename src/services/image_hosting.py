@@ -49,24 +49,21 @@ def _ensure_namespace_dir(namespace: str) -> Path:
 
 
 def _resize_image(image_bytes: bytes, max_size: int) -> tuple[bytes, str]:
-    try:
-        img: Image.Image = Image.open(BytesIO(image_bytes))
-        if img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
-        width, height = img.size
-        if width > max_size or height > max_size:
-            if width > height:
-                new_width = max_size
-                new_height = int(height * max_size / width)
-            else:
-                new_height = max_size
-                new_width = int(width * max_size / height)
-            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-        buffer = BytesIO()
-        img.save(buffer, format="JPEG", quality=85, optimize=True)
-        return buffer.getvalue(), "jpeg"
-    except Exception:
-        return image_bytes, _detect_image_format(image_bytes)
+    img: Image.Image = Image.open(BytesIO(image_bytes))
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+    width, height = img.size
+    if width > max_size or height > max_size:
+        if width > height:
+            new_width = max_size
+            new_height = int(height * max_size / width)
+        else:
+            new_height = max_size
+            new_width = int(width * max_size / height)
+        img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    buffer = BytesIO()
+    img.save(buffer, format="JPEG", quality=85, optimize=True)
+    return buffer.getvalue(), "jpeg"
 
 
 def generate_image_id() -> str:
