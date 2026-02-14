@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     uploads_path: str = "/app/uploads"
     max_upload_size: int = 1200
     max_fetch_size: int = 800
+    max_fetch_bytes: int = 10485760
     fetch_timeout: float = 15.0
     proxies: dict[str, list[str]] = {}
     proxy_files: dict[str, str] = {}

@@ -98,7 +98,7 @@ def save_image(namespace: str, base64_data: str) -> str | None:
 
 def save_image_bytes(namespace: str, image_bytes: bytes) -> str | None:
     try:
-        resized_bytes, img_format = _resize_image(image_bytes, settings.max_upload_size)
+        resized_bytes, img_format = _resize_image(image_bytes, settings.max_fetch_size)
 
         ext = FORMAT_TO_EXT.get(img_format, "jpg")
         namespace_dir = _ensure_namespace_dir(namespace)
@@ -147,10 +147,3 @@ def delete_namespace_images(namespace: str) -> int:
 
     logger.info("namespace_images_deleted", namespace=namespace, count=count)
     return count
-
-
-def upload_image_to_hosting(namespace: str, base64_data: str, base_url: str) -> str | None:
-    image_id = save_image(namespace, base64_data)
-    if not image_id:
-        return None
-    return get_image_url(namespace, image_id, base_url)
