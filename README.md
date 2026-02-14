@@ -30,7 +30,7 @@ Microservice for uploading, serving, and fetching images with proxy-based extern
 | `GET` | `/images/{namespace}/{image_id}` | Serve a stored image |
 | `POST` | `/images/{namespace}` | Upload a base64-encoded image |
 | `DELETE` | `/images/{namespace}` | Delete all images in a namespace |
-| `POST` | `/images/{namespace}/fetch` | Fetch an external image via proxy, store and return URL |
+| `POST` | `/images/fetch` | Fetch an external image via proxy, return base64 |
 | `GET` | `/health` | Health check |
 | `GET` | `/ready` | Readiness check |
 
