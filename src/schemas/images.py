@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ImageUploadRequest(BaseModel):
@@ -25,7 +25,7 @@ class ImageFetchResponse(BaseModel):
 
 
 class ImageProxyRequest(BaseModel):
-    urls: list[str]
+    urls: list[str] = Field(..., max_length=100)
     pool: str | None = None
 
 
