@@ -92,12 +92,12 @@ async def fetch_external_image(request: Request, body: ImageFetchRequest) -> Ima
 
     _validate_fetch_url(body.url)
 
-    image_bytes = await image_fetcher.fetch_image(body.url, pool=body.pool)
-    if not image_bytes:
+    fetched_bytes = await image_fetcher.fetch_image(body.url, pool=body.pool)
+    if not fetched_bytes:
         raise AppError(status_code=502, detail="Failed to fetch external image")
 
-    mime_type = image_hosting.detect_mime_type(image_bytes)
-    data = base64.b64encode(image_bytes).decode()
+    mime_type = image_hosting.detect_mime_type(fetched_bytes)
+    data = base64.b64encode(fetched_bytes).decode()
     return ImageFetchResponse(data=data, mime_type=mime_type)
 
 
