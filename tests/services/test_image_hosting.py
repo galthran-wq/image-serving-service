@@ -81,17 +81,6 @@ class TestSaveAndGetImage:
             assert image_hosting.get_image_path("no-ns", "no-id") is None
 
 
-class TestSaveImageBytes:
-    def test_save_bytes(self, tmp_path: Path) -> None:
-        with patch.object(image_hosting, "IMAGES_DIR", tmp_path):
-            data = _make_test_image()
-            image_id = image_hosting.save_image_bytes("test-ns", data)
-            assert image_id is not None
-
-            result = image_hosting.get_image_path("test-ns", image_id)
-            assert result is not None
-
-
 class TestDeleteNamespaceImages:
     def test_delete(self, tmp_path: Path) -> None:
         with patch.object(image_hosting, "IMAGES_DIR", tmp_path):

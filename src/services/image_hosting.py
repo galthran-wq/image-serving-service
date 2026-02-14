@@ -98,25 +98,6 @@ def save_image(namespace: str, base64_data: str) -> str | None:
         return None
 
 
-def save_image_bytes(namespace: str, image_bytes: bytes) -> str | None:
-    try:
-        resized_bytes, img_format = _resize_image(image_bytes, settings.max_fetch_size)
-
-        ext = FORMAT_TO_EXT.get(img_format, "jpg")
-        namespace_dir = _ensure_namespace_dir(namespace)
-        image_id = generate_image_id()
-        image_path = namespace_dir / f"{image_id}.{ext}"
-
-        with open(image_path, "wb") as f:
-            f.write(resized_bytes)
-
-        logger.info("image_saved", namespace=namespace, image_id=image_id)
-        return image_id
-    except Exception as e:
-        logger.error("image_save_failed", namespace=namespace, error=str(e))
-        return None
-
-
 def get_image_path(namespace: str, image_id: str) -> tuple[Path, str] | None:
     namespace_dir = IMAGES_DIR / namespace
     for ext in ["jpg", "png", "gif", "webp"]:
