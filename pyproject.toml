@@ -1,5 +1,5 @@
 [project]
-name = "python-service-template"
+name = "image-serving-service"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
@@ -8,6 +8,8 @@ dependencies = [
     "pydantic-settings>=2.7.0",
     "structlog>=24.4.0",
     "prometheus-fastapi-instrumentator>=7.0.0",
+    "pillow>=11.0.0",
+    "resilient-httpx>=0.2.0",
 ]
 
 [dependency-groups]
@@ -36,6 +38,10 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "A", "SIM", "TCH"]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "resilient_httpx.*"
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
