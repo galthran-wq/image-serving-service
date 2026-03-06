@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 from httpx import AsyncClient
 from PIL import Image
-from src.services import image_hosting
+from src.services.storage.local import LocalStorageBackend
 
 
 def _make_test_image(width: int = 100, height: int = 100) -> bytes:
@@ -19,9 +19,14 @@ def _make_base64_image(width: int = 100, height: int = 100) -> str:
     return base64.b64encode(_make_test_image(width, height)).decode()
 
 
+def _patch_storage(tmp_path: Path):
+    storage = LocalStorageBackend(uploads_path=str(tmp_path))
+    return patch("src.services.image_hosting.get_storage", return_value=storage)
+
+
 class TestUploadImage:
     async def test_upload_success(self, client: AsyncClient, tmp_path: Path) -> None:
-        with patch.object(image_hosting, "IMAGES_DIR", tmp_path):
+        with _patch_storage(tmp_path):
             response = await client.post(
                 "/images/test-ns",
                 json={"data": _make_base64_image()},
@@ -42,10 +47,12 @@ class TestUploadImage:
 
 class TestGetImage:
     async def test_get_existing_image(self, client: AsyncClient, tmp_path: Path) -> None:
-        with patch.object(image_hosting, "IMAGES_DIR", tmp_path):
-            b64 = _make_base64_image()
-            image_id = image_hosting.save_image("test-ns", b64)
-            assert image_id is not None
+        with _patch_storage(tmp_path):
+            upload_resp = await client.post(
+                "/images/test-ns",
+                json={"data": _make_base64_image()},
+            )
+            image_id = upload_resp.json()["image_id"]
 
             response = await client.get(f"/images/test-ns/{image_id}")
             assert response.status_code == 200
@@ -53,7 +60,7 @@ class TestGetImage:
             assert "cache-control" in response.headers
 
     async def test_get_nonexistent_image(self, client: AsyncClient, tmp_path: Path) -> None:
-        with patch.object(image_hosting, "IMAGES_DIR", tmp_path):
+        with _patch_storage(tmp_path):
             response = await client.get("/images/test-ns/nonexistent")
             assert response.status_code == 404
 
@@ -64,16 +71,16 @@ class TestGetImage:
 
 class TestDeleteImages:
     async def test_delete_namespace(self, client: AsyncClient, tmp_path: Path) -> None:
-        with patch.object(image_hosting, "IMAGES_DIR", tmp_path):
-            image_hosting.save_image("del-ns", _make_base64_image())
-            image_hosting.save_image("del-ns", _make_base64_image())
+        with _patch_storage(tmp_path):
+            await client.post("/images/del-ns", json={"data": _make_base64_image()})
+            await client.post("/images/del-ns", json={"data": _make_base64_image()})
 
             response = await client.delete("/images/del-ns")
             assert response.status_code == 200
             assert response.json()["deleted_count"] == 2
 
     async def test_delete_empty_namespace(self, client: AsyncClient, tmp_path: Path) -> None:
-        with patch.object(image_hosting, "IMAGES_DIR", tmp_path):
+        with _patch_storage(tmp_path):
             response = await client.delete("/images/empty-ns")
             assert response.status_code == 200
             assert response.json()["deleted_count"] == 0
@@ -174,7 +181,7 @@ class TestProxyImages:
         test_image = _make_test_image()
         with (
             patch("src.services.image_fetcher.fetch_image", new_callable=AsyncMock, return_value=test_image),
-            patch.object(image_hosting, "IMAGES_DIR", tmp_path),
+            _patch_storage(tmp_path),
         ):
             response = await client.post(
                 "/images/test-ns/proxy",
@@ -194,7 +201,7 @@ class TestProxyImages:
 
         with (
             patch("src.services.image_fetcher.fetch_image", new_callable=AsyncMock, side_effect=_side_effect),
-            patch.object(image_hosting, "IMAGES_DIR", tmp_path),
+            _patch_storage(tmp_path),
         ):
             response = await client.post(
                 "/images/test-ns/proxy",
@@ -213,7 +220,7 @@ class TestProxyImages:
         mock_fetch = AsyncMock(return_value=test_image)
         with (
             patch("src.services.image_fetcher.fetch_image", mock_fetch),
-            patch.object(image_hosting, "IMAGES_DIR", tmp_path),
+            _patch_storage(tmp_path),
         ):
             response = await client.post(
                 "/images/test-ns/proxy",
@@ -226,7 +233,7 @@ class TestProxyImages:
         test_image = _make_test_image()
         with (
             patch("src.services.image_fetcher.fetch_image", new_callable=AsyncMock, return_value=test_image),
-            patch.object(image_hosting, "IMAGES_DIR", tmp_path),
+            _patch_storage(tmp_path),
         ):
             response = await client.post(
                 "/images/test-ns/proxy",
@@ -244,7 +251,7 @@ class TestProxyImages:
 
 class TestUploadImageExtended:
     async def test_upload_with_data_url_prefix(self, client: AsyncClient, tmp_path: Path) -> None:
-        with patch.object(image_hosting, "IMAGES_DIR", tmp_path):
+        with _patch_storage(tmp_path):
             b64 = f"data:image/jpeg;base64,{_make_base64_image()}"
             response = await client.post("/images/test-ns", json={"data": b64})
             assert response.status_code == 200
@@ -255,7 +262,7 @@ class TestUploadImageExtended:
         assert response.status_code in (400, 404, 405)
 
     async def test_upload_save_failure(self, client: AsyncClient) -> None:
-        with patch.object(image_hosting, "save_image", return_value=None):
+        with patch("src.api.endpoints.images.image_hosting.save_image", new_callable=AsyncMock, return_value=None):
             response = await client.post("/images/test-ns", json={"data": "invalid-b64"})
             assert response.status_code == 500
 
