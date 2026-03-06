@@ -50,8 +50,9 @@ class S3StorageBackend:
         logger.info("image_saved_s3", namespace=namespace, image_id=image_id, key=key)
 
     async def get(self, namespace: str, image_id: str) -> tuple[bytes, str] | None:
-        from src.services.image_hosting import FORMAT_TO_MEDIA_TYPE
         from botocore.exceptions import ClientError
+
+        from src.services.image_hosting import FORMAT_TO_MEDIA_TYPE
 
         async with self._client_ctx() as client:
             for ext in ("jpg", "png", "gif", "webp"):
