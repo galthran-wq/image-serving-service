@@ -28,7 +28,6 @@ class S3StorageBackend:
         )
         self._endpoint_url = endpoint_url
         self._boto_config = BotoConfig(proxies={"https": proxy, "http": proxy}) if proxy else None
-        self._client: Any = None
 
     def _key(self, namespace: str, image_id: str, ext: str) -> str:
         return f"{self._prefix}/{namespace}/{image_id}.{ext}"
@@ -52,17 +51,21 @@ class S3StorageBackend:
 
     async def get(self, namespace: str, image_id: str) -> tuple[bytes, str] | None:
         from src.services.image_hosting import FORMAT_TO_MEDIA_TYPE
+        from botocore.exceptions import ClientError
 
-        for ext in ("jpg", "png", "gif", "webp"):
-            key = self._key(namespace, image_id, ext)
-            try:
-                async with self._client_ctx() as client:
+        async with self._client_ctx() as client:
+            for ext in ("jpg", "png", "gif", "webp"):
+                key = self._key(namespace, image_id, ext)
+                try:
                     response = await client.get_object(Bucket=self._bucket, Key=key)
-                    data = await response["Body"].read()
-                    media_type = FORMAT_TO_MEDIA_TYPE.get(ext, "image/jpeg")
-                    return data, media_type
-            except Exception:
-                continue
+                except ClientError as exc:
+                    error_code = exc.response.get("Error", {}).get("Code")
+                    if error_code in ("NoSuchKey", "404"):
+                        continue
+                    raise
+                data = await response["Body"].read()
+                media_type = FORMAT_TO_MEDIA_TYPE.get(ext, "image/jpeg")
+                return data, media_type
         return None
 
     async def delete_namespace(self, namespace: str) -> int:
