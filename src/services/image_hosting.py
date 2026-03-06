@@ -1,18 +1,15 @@
 import base64
-import contextlib
 import secrets
 import uuid
 from io import BytesIO
-from pathlib import Path
 
 import structlog
 from PIL import Image
 
 from src.config import settings
+from src.services.storage import get_storage
 
 logger = structlog.get_logger()
-
-IMAGES_DIR = Path(settings.uploads_path) / "images"
 
 FORMAT_TO_EXT = {
     "jpeg": "jpg",
@@ -47,12 +44,6 @@ def _detect_image_format(image_bytes: bytes) -> str:
     return "jpeg"
 
 
-def _ensure_namespace_dir(namespace: str) -> Path:
-    namespace_dir = IMAGES_DIR / namespace
-    namespace_dir.mkdir(parents=True, exist_ok=True)
-    return namespace_dir
-
-
 def _resize_image(image_bytes: bytes, max_size: int) -> tuple[bytes, str]:
     img: Image.Image = Image.open(BytesIO(image_bytes))
     if img.mode in ("RGBA", "P"):
@@ -75,66 +66,44 @@ def generate_image_id() -> str:
     return f"{uuid.uuid4().hex}-{secrets.token_urlsafe(8)}"
 
 
-def _save_bytes(namespace: str, image_bytes: bytes, max_size: int) -> str | None:
+async def _save_bytes(namespace: str, image_bytes: bytes, max_size: int) -> str | None:
     try:
         resized_bytes, img_format = _resize_image(image_bytes, max_size)
         ext = FORMAT_TO_EXT.get(img_format, "jpg")
-        namespace_dir = _ensure_namespace_dir(namespace)
         image_id = generate_image_id()
-        image_path = namespace_dir / f"{image_id}.{ext}"
-        with open(image_path, "wb") as f:
-            f.write(resized_bytes)
-        logger.info("image_saved", namespace=namespace, image_id=image_id)
+        storage = get_storage()
+        await storage.save(namespace, image_id, resized_bytes, ext)
         return image_id
     except Exception as e:
         logger.error("image_save_failed", namespace=namespace, error=str(e))
         return None
 
 
-def save_image(namespace: str, base64_data: str) -> str | None:
+async def save_image(namespace: str, base64_data: str) -> str | None:
     try:
         if ";base64," in base64_data:
             base64_data = base64_data.split(";base64,")[1]
         image_bytes = base64.b64decode(base64_data)
-        return _save_bytes(namespace, image_bytes, settings.max_upload_size)
+        return await _save_bytes(namespace, image_bytes, settings.max_upload_size)
     except Exception as e:
         logger.error("image_save_failed", namespace=namespace, error=str(e))
         return None
 
 
-def save_image_bytes(namespace: str, image_bytes: bytes) -> str | None:
-    return _save_bytes(namespace, image_bytes, settings.max_fetch_size)
+async def save_image_bytes(namespace: str, image_bytes: bytes) -> str | None:
+    return await _save_bytes(namespace, image_bytes, settings.max_fetch_size)
 
 
-def get_image_path(namespace: str, image_id: str) -> tuple[Path, str] | None:
-    namespace_dir = IMAGES_DIR / namespace
-    for ext in ["jpg", "png", "gif", "webp"]:
-        image_path = namespace_dir / f"{image_id}.{ext}"
-        if image_path.exists():
-            return image_path, FORMAT_TO_MEDIA_TYPE.get(ext, "image/jpeg")
-    return None
+async def get_image(namespace: str, image_id: str) -> tuple[bytes, str] | None:
+    storage = get_storage()
+    return await storage.get(namespace, image_id)
 
 
-def get_image_url(namespace: str, image_id: str, base_url: str) -> str:
-    return f"{base_url.rstrip('/')}/images/{namespace}/{image_id}"
+async def get_image_url(namespace: str, image_id: str, base_url: str) -> str:
+    storage = get_storage()
+    return await storage.url(namespace, image_id, base_url)
 
 
-def delete_namespace_images(namespace: str) -> int:
-    namespace_dir = IMAGES_DIR / namespace
-    if not namespace_dir.exists():
-        return 0
-
-    count = 0
-    for ext in ["jpg", "png", "gif", "webp"]:
-        for image_file in namespace_dir.glob(f"*.{ext}"):
-            try:
-                image_file.unlink()
-                count += 1
-            except Exception as e:
-                logger.error("image_delete_failed", path=str(image_file), error=str(e))
-
-    with contextlib.suppress(Exception):
-        namespace_dir.rmdir()
-
-    logger.info("namespace_images_deleted", namespace=namespace, count=count)
-    return count
+async def delete_namespace_images(namespace: str) -> int:
+    storage = get_storage()
+    return await storage.delete_namespace(namespace)

@@ -1,7 +1,6 @@
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import structlog
 from fastapi import FastAPI
@@ -34,12 +33,13 @@ def configure_logging() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
-    Path(settings.uploads_path, "images").mkdir(parents=True, exist_ok=True)
-    logger.info("startup", app_name=settings.app_name)
+    logger.info("startup", app_name=settings.app_name, storage=settings.storage_backend)
     yield
     from src.services.image_fetcher import close_client
+    from src.services.storage import close_storage
 
     await close_client()
+    await close_storage()
     logger.info("shutdown", app_name=settings.app_name)
 
 

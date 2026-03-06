@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,6 +14,8 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["*"]
     metrics_enabled: bool = True
 
+    storage_backend: Literal["local", "s3"] = "local"
+
     uploads_path: str = "/app/uploads"
     max_upload_size: int = 1200
     max_fetch_size: int = 800
@@ -23,6 +27,14 @@ class Settings(BaseSettings):
     fetch_max_retries: int = 3
     proxy_blacklist_threshold: int = 3
     proxy_blacklist_ttl: float = 300.0
+
+    s3_bucket: str = ""
+    s3_region: str = "us-east-1"
+    s3_endpoint_url: str | None = None
+    s3_access_key: str | None = None
+    s3_secret_key: str | None = None
+    s3_prefix: str = "images"
+    s3_proxy: str | None = None
 
 
 settings = Settings()

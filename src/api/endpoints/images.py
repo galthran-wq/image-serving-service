@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 import structlog
 from fastapi import APIRouter, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 
 from src.core.exceptions import AppError
 from src.schemas.images import (
@@ -54,7 +54,7 @@ def _validate_fetch_url(url: str) -> None:
         raise AppError(status_code=400, detail="Invalid url")
 
 
-def _try_serve_local(url: str, base_url: str) -> tuple[bytes, str] | None:
+async def _try_serve_internal(url: str, base_url: str) -> tuple[bytes, str] | None:
     parsed = urlparse(url)
     base_parsed = urlparse(base_url)
     if parsed.hostname:
@@ -74,17 +74,13 @@ def _try_serve_local(url: str, base_url: str) -> tuple[bytes, str] | None:
     namespace, image_id = m.group(1), m.group(2)
     _validate_path_segment(namespace, "namespace")
     _validate_path_segment(image_id, "image_id")
-    result = image_hosting.get_image_path(namespace, image_id)
-    if not result:
-        return None
-    image_path, media_type = result
-    return image_path.read_bytes(), media_type
+    return await image_hosting.get_image(namespace, image_id)
 
 
 @router.post("/fetch", response_model=ImageFetchResponse)
 async def fetch_external_image(request: Request, body: ImageFetchRequest) -> ImageFetchResponse:
     base_url = str(request.base_url)
-    local = _try_serve_local(body.url, base_url)
+    local = await _try_serve_internal(body.url, base_url)
     if local:
         image_bytes, mime_type = local
         data = base64.b64encode(image_bytes).decode()
@@ -115,9 +111,9 @@ async def proxy_images(namespace: str, request: Request, body: ImageProxyRequest
                 image_bytes = await image_fetcher.fetch_image(url, pool=body.pool)
                 if not image_bytes:
                     return
-                image_id = image_hosting.save_image_bytes(namespace, image_bytes)
+                image_id = await image_hosting.save_image_bytes(namespace, image_bytes)
                 if image_id:
-                    result_urls[url] = image_hosting.get_image_url(namespace, image_id, base_url)
+                    result_urls[url] = await image_hosting.get_image_url(namespace, image_id, base_url)
             except Exception as e:
                 logger.error("proxy_image_failed", url=url[:80], error=str(e))
 
@@ -126,17 +122,17 @@ async def proxy_images(namespace: str, request: Request, body: ImageProxyRequest
 
 
 @router.get("/{namespace}/{image_id}")
-async def get_image(namespace: str, image_id: str) -> FileResponse:
+async def get_image(namespace: str, image_id: str) -> Response:
     _validate_path_segment(namespace, "namespace")
     _validate_path_segment(image_id, "image_id")
 
-    result = image_hosting.get_image_path(namespace, image_id)
+    result = await image_hosting.get_image(namespace, image_id)
     if not result:
         raise AppError(status_code=404, detail="Image not found")
 
-    image_path, media_type = result
-    return FileResponse(
-        path=image_path,
+    image_bytes, media_type = result
+    return Response(
+        content=image_bytes,
         media_type=media_type,
         headers={"Cache-Control": "public, max-age=86400"},
     )
@@ -147,11 +143,11 @@ async def upload_image(namespace: str, request: Request, body: ImageUploadReques
     _validate_path_segment(namespace, "namespace")
 
     base_url = str(request.base_url).rstrip("/")
-    image_id = image_hosting.save_image(namespace, body.data)
+    image_id = await image_hosting.save_image(namespace, body.data)
     if not image_id:
         raise AppError(status_code=500, detail="Failed to save image")
 
-    url = image_hosting.get_image_url(namespace, image_id, base_url)
+    url = await image_hosting.get_image_url(namespace, image_id, base_url)
     return ImageUploadResponse(image_id=image_id, url=url)
 
 
@@ -159,5 +155,5 @@ async def upload_image(namespace: str, request: Request, body: ImageUploadReques
 async def delete_images(namespace: str) -> ImageDeleteResponse:
     _validate_path_segment(namespace, "namespace")
 
-    count = image_hosting.delete_namespace_images(namespace)
+    count = await image_hosting.delete_namespace_images(namespace)
     return ImageDeleteResponse(deleted_count=count)
