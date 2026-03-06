@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, patch
 
 from httpx import AsyncClient
 from PIL import Image
-
 from src.services.storage.local import LocalStorageBackend
 
 

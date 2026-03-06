@@ -1,9 +1,14 @@
+from __future__ import annotations
+
 import base64
 from io import BytesIO
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
-from PIL import Image
+if TYPE_CHECKING:
+    from pathlib import Path
 
+from PIL import Image
 from src.services import image_hosting
 from src.services.storage.local import LocalStorageBackend
 
@@ -61,7 +66,7 @@ class TestResizeImage:
 
 
 class TestSaveAndGetImage:
-    async def test_save_and_retrieve(self, tmp_path: "Path") -> None:
+    async def test_save_and_retrieve(self, tmp_path: Path) -> None:
         storage = LocalStorageBackend(uploads_path=str(tmp_path))
         with patch(_STORAGE_PATCH, return_value=storage):
             b64 = _make_base64_image()
@@ -74,21 +79,21 @@ class TestSaveAndGetImage:
             assert len(image_bytes) > 0
             assert media_type == "image/jpeg"
 
-    async def test_save_with_data_url_prefix(self, tmp_path: "Path") -> None:
+    async def test_save_with_data_url_prefix(self, tmp_path: Path) -> None:
         storage = LocalStorageBackend(uploads_path=str(tmp_path))
         with patch(_STORAGE_PATCH, return_value=storage):
             b64 = f"data:image/jpeg;base64,{_make_base64_image()}"
             image_id = await image_hosting.save_image("test-ns", b64)
             assert image_id is not None
 
-    async def test_get_nonexistent_returns_none(self, tmp_path: "Path") -> None:
+    async def test_get_nonexistent_returns_none(self, tmp_path: Path) -> None:
         storage = LocalStorageBackend(uploads_path=str(tmp_path))
         with patch(_STORAGE_PATCH, return_value=storage):
             assert await image_hosting.get_image("no-ns", "no-id") is None
 
 
 class TestDeleteNamespaceImages:
-    async def test_delete(self, tmp_path: "Path") -> None:
+    async def test_delete(self, tmp_path: Path) -> None:
         storage = LocalStorageBackend(uploads_path=str(tmp_path))
         with patch(_STORAGE_PATCH, return_value=storage):
             b64 = _make_base64_image()
@@ -98,20 +103,20 @@ class TestDeleteNamespaceImages:
             count = await image_hosting.delete_namespace_images("del-ns")
             assert count == 2
 
-    async def test_delete_nonexistent_returns_zero(self, tmp_path: "Path") -> None:
+    async def test_delete_nonexistent_returns_zero(self, tmp_path: Path) -> None:
         storage = LocalStorageBackend(uploads_path=str(tmp_path))
         with patch(_STORAGE_PATCH, return_value=storage):
             assert await image_hosting.delete_namespace_images("nope") == 0
 
 
 class TestGetImageUrl:
-    async def test_url_format(self, tmp_path: "Path") -> None:
+    async def test_url_format(self, tmp_path: Path) -> None:
         storage = LocalStorageBackend(uploads_path=str(tmp_path))
         with patch(_STORAGE_PATCH, return_value=storage):
             url = await image_hosting.get_image_url("ns1", "img1", "http://localhost:8000")
             assert url == "http://localhost:8000/images/ns1/img1"
 
-    async def test_strips_trailing_slash(self, tmp_path: "Path") -> None:
+    async def test_strips_trailing_slash(self, tmp_path: Path) -> None:
         storage = LocalStorageBackend(uploads_path=str(tmp_path))
         with patch(_STORAGE_PATCH, return_value=storage):
             url = await image_hosting.get_image_url("ns1", "img1", "http://localhost:8000/")
@@ -140,7 +145,7 @@ class TestDetectMimeType:
 
 
 class TestSaveImageBytes:
-    async def test_save_bytes_success(self, tmp_path: "Path") -> None:
+    async def test_save_bytes_success(self, tmp_path: Path) -> None:
         storage = LocalStorageBackend(uploads_path=str(tmp_path))
         with patch(_STORAGE_PATCH, return_value=storage):
             image_bytes = _make_test_image()
@@ -149,7 +154,7 @@ class TestSaveImageBytes:
             result = await image_hosting.get_image("test-ns", image_id)
             assert result is not None
 
-    async def test_save_bytes_invalid_data(self, tmp_path: "Path") -> None:
+    async def test_save_bytes_invalid_data(self, tmp_path: Path) -> None:
         storage = LocalStorageBackend(uploads_path=str(tmp_path))
         with patch(_STORAGE_PATCH, return_value=storage):
             result = await image_hosting.save_image_bytes("test-ns", b"not-an-image")
@@ -202,13 +207,13 @@ class TestResizeImageExtended:
 
 
 class TestSaveImageInvalid:
-    async def test_invalid_base64(self, tmp_path: "Path") -> None:
+    async def test_invalid_base64(self, tmp_path: Path) -> None:
         storage = LocalStorageBackend(uploads_path=str(tmp_path))
         with patch(_STORAGE_PATCH, return_value=storage):
             result = await image_hosting.save_image("test-ns", "!!!not-base64!!!")
             assert result is None
 
-    async def test_valid_base64_but_not_image(self, tmp_path: "Path") -> None:
+    async def test_valid_base64_but_not_image(self, tmp_path: Path) -> None:
         storage = LocalStorageBackend(uploads_path=str(tmp_path))
         with patch(_STORAGE_PATCH, return_value=storage):
             data = base64.b64encode(b"just some text").decode()
