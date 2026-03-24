@@ -34,6 +34,13 @@ def configure_logging() -> None:
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
     logger.info("startup", app_name=settings.app_name, storage=settings.storage_backend)
+    if settings.storage_backend == "s3":
+        from src.services.storage import get_storage
+        from src.services.storage.s3 import S3StorageBackend
+
+        storage = get_storage()
+        if isinstance(storage, S3StorageBackend):
+            await storage.ensure_bucket()
     yield
     from src.services.image_fetcher import close_client
     from src.services.storage import close_storage

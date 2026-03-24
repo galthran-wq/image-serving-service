@@ -35,6 +35,20 @@ class S3StorageBackend:
     def _client_ctx(self) -> Any:
         return self._session.client("s3", endpoint_url=self._endpoint_url, config=self._boto_config)
 
+    async def ensure_bucket(self) -> None:
+        from botocore.exceptions import ClientError
+
+        async with self._client_ctx() as client:
+            try:
+                await client.head_bucket(Bucket=self._bucket)
+                logger.info("s3_bucket_exists", bucket=self._bucket)
+            except ClientError:
+                try:
+                    await client.create_bucket(Bucket=self._bucket)
+                    logger.info("s3_bucket_created", bucket=self._bucket)
+                except ClientError as exc:
+                    logger.warning("s3_bucket_create_failed", bucket=self._bucket, error=str(exc))
+
     async def save(self, namespace: str, image_id: str, data: bytes, ext: str) -> None:
         from src.services.image_hosting import FORMAT_TO_MEDIA_TYPE
 
