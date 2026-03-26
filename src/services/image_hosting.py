@@ -57,9 +57,14 @@ def _resize_image(image_bytes: bytes, max_size: int) -> tuple[bytes, str]:
             new_height = max_size
             new_width = int(width * max_size / height)
         img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    out_format = settings.output_format
+    save_kwargs: dict[str, object] = {"optimize": True}
+    if out_format in ("jpeg", "webp"):
+        save_kwargs["quality"] = settings.output_quality
+    pil_format = "JPEG" if out_format == "jpeg" else out_format.upper()
     buffer = BytesIO()
-    img.save(buffer, format="JPEG", quality=85, optimize=True)
-    return buffer.getvalue(), "jpeg"
+    img.save(buffer, format=pil_format, **save_kwargs)
+    return buffer.getvalue(), out_format
 
 
 def generate_image_id() -> str:

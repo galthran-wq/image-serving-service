@@ -8,6 +8,7 @@ import structlog
 from fastapi import APIRouter, Request
 from fastapi.responses import Response
 
+from src.config import settings
 from src.core.exceptions import AppError
 from src.schemas.images import (
     ImageDeleteResponse,
@@ -92,8 +93,9 @@ async def fetch_external_image(request: Request, body: ImageFetchRequest) -> Ima
     if not fetched_bytes:
         raise AppError(status_code=502, detail="Failed to fetch external image")
 
-    mime_type = image_hosting.detect_mime_type(fetched_bytes)
-    data = base64.b64encode(fetched_bytes).decode()
+    processed_bytes, fmt = image_hosting._resize_image(fetched_bytes, settings.max_fetch_size)
+    mime_type = image_hosting.FORMAT_TO_MEDIA_TYPE.get(fmt, "image/jpeg")
+    data = base64.b64encode(processed_bytes).decode()
     return ImageFetchResponse(data=data, mime_type=mime_type)
 
 

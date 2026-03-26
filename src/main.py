@@ -40,7 +40,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         storage = get_storage()
         if isinstance(storage, S3StorageBackend):
-            await storage.ensure_bucket()
+            try:
+                await storage.ensure_bucket()
+            except Exception as exc:
+                logger.warning("s3_ensure_bucket_failed", error=str(exc))
     yield
     from src.services.image_fetcher import close_client
     from src.services.storage import close_storage
